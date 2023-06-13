@@ -1,0 +1,152 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id               String          @id @default(cuid())
+    email            String          @unique
+    nickname         String          @unique
+    password         String
+    pictureId        String?
+    games            Int             @default(0)
+    wins             Int             @default(0)
+    prefferedColorId Int?
+    enabled          Boolean         @default(true)
+    Picture          Picture?        @relation(fields: [pictureId], references: [id], onDelete: SetNull)
+    Color            Color?          @relation(fields: [prefferedColorId], references: [id], onDelete: SetNull, onUpdate: SetNull)
+    DirectChatUser1  DirectChat[]    @relation("user1")
+    DirectChatUser2  DirectChat[]    @relation("user2")
+    DirectMessage    DirectMessage[]
+    GamePlayer       GamePlayer[]
+    GameMessage      GameMessage[]
+    Admin            Admin?
+}
+
+model Admin {
+    id               String     @id
+    user             User       @relation(fields: [id], references: [id], onDelete: Cascade)
+    QuestionCreator  Question[] @relation("createdBy")
+    QuestionEditor   Question[] @relation("editedBy")
+    QuestionApprover Question[] @relation("approvedBy")
+}
+
+model Picture {
+    id           String         @id @default(cuid())
+    link         String
+    User         User[]
+    QuestionType QuestionType[]
+}
+
+model Color {
+    id           Int           @id @default(autoincrement())
+    hexCode      String        @unique
+    QuestionType QuestionType?
+    User         User[]
+}
+
+model QuestionType {
+    id          Int        @id @default(autoincrement())
+    type        String     @unique
+    description String
+    isDefault   Boolean    @default(false)
+    colorId     Int        @unique
+    symbolId    String?    @unique
+    enabled     Boolean    @default(true)
+    color       Color      @relation(fields: [colorId], references: [id], onDelete: Restrict)
+    symbol      Picture?   @relation(fields: [symbolId], references: [id], onDelete: Restrict)
+    Question    Question[]
+}
+
+model Question {
+    id           Int            @id @default(autoincrement())
+    typeId       Int
+    question     String
+    awnser       String
+    playedTimes  Int            @default(0)
+    createdById  String?
+    editedById   String?
+    approvedById String?
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+    approved     Boolean        @default(false)
+    enabled      Boolean        @default(true)
+    type         QuestionType   @relation(fields: [typeId], references: [id], onDelete: Restrict)
+    createdBy    Admin?         @relation("createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    editedBy     Admin?         @relation("editedBy", fields: [editedById], references: [id], onDelete: SetNull)
+    approvedBy   Admin?         @relation("approvedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+    GameQuestion GameQuestion[]
+}
+
+model Game {
+    id            Int            @id @default(autoincrement())
+    boardSize     Int
+    boardSequence String
+    round         Int            @default(0)
+    turn          Int            @default(0)
+    startTime     DateTime       @default(now())
+    endTime       DateTime?
+    GamePlayer    GamePlayer[]
+    GameQuestion  GameQuestion[]
+    GameChat      GameChat[]
+}
+
+model GameQuestion {
+    id         Int       @id @default(autoincrement())
+    questionId Int?
+    gameId     Int
+    question   Question? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+    game       Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model GamePlayer {
+    id            Int     @id @default(autoincrement())
+    position      Int     @default(0)
+    turn          Int
+    color         String
+    availableBets String  @default("12345")
+    userId        String?
+    gameId        Int
+    user          User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+    game          Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model GameChat {
+    id          Int           @id @default(autoincrement())
+    gameId      Int
+    game        Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+    GameMessage GameMessage[]
+}
+
+model GameMessage {
+    id         Int      @id @default(autoincrement())
+    message    String
+    sendedTime DateTime @default(now())
+    senderId   String?
+    chatId     Int
+    sender     User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
+    chat       GameChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
+model DirectChat {
+    id            Int             @id @default(autoincrement())
+    userId1       String?
+    userId2       String?
+    user1         User?           @relation("user1", fields: [userId1], references: [id], onDelete: SetNull)
+    user2         User?           @relation("user2", fields: [userId2], references: [id], onDelete: SetNull)
+    DirectMessage DirectMessage[]
+}
+
+model DirectMessage {
+    id         Int        @id @default(autoincrement())
+    message    String
+    sendedTime DateTime   @default(now())
+    senderId   String?
+    chatId     Int
+    sender     User?      @relation(fields: [senderId], references: [id], onDelete: SetNull)
+    chat       DirectChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
